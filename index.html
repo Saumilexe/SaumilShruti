@@ -147,6 +147,13 @@ h2{font-size:clamp(28px,6vw,40px);text-align:center;margin-bottom:8px}
 footer{background:var(--teal);color:var(--onteal);text-align:center;padding:40px 20px;font-size:16px}
 footer .big{font:500 24px "Playfair Display","Noto Serif Gujarati",serif;color:var(--gold);margin-bottom:4px}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.rec,.eq i,.rise,.n1,.n2,.ringwrap,.rl,.rr,.tw,.spk{animation:none!important}.tw{opacity:1}}
+/*view counter */
+.views{display:inline-flex;align-items:center;gap:12px;margin-top:20px;padding:10px 22px;border:1px solid rgba(240,165,0,.6);border-radius:99px;background:rgba(255,244,220,.07);font-size:15px}
+.views .live{width:9px;height:9px;border-radius:50%;background:#4ADE80;box-shadow:0 0 0 0 rgba(74,222,128,.6);animation:pulse 1.8s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 10px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+.views .vlab{opacity:.9}
+.views b{font:700 26px "Playfair Display",serif;color:var(--gold);min-width:2ch;text-align:center;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){.views .live{animation:none}}
 </style>
 </head>
 <body>
@@ -241,6 +248,11 @@ footer .big{font:500 24px "Playfair Display","Noto Serif Gujarati",serif;color:v
 <footer>
   <div class="big"><span class="en">Your presence is our blessing</span><span class="gu">આપની હાજરી અમારા માટે આશીર્વાદ છે</span></div>
   <span class="en">We look forward to celebrating with you.</span><span class="gu">આપની સાથે ઉજવણી કરવાની રાહ જોઈએ છીએ.</span>
+  <div class="views" id="views">
+  <span class="live" aria-hidden="true"></span>
+  <span class="vlab"><span class="en">Total Website views : </span><span class="gu">વેબસાઇટ કુલ વખત જોવાઈ : </span></span>
+  <b id="vNum">0</b>
+</div>
 </footer>
 
 <script>
@@ -410,6 +422,38 @@ if(!RM){
     });
   }
 }
+/* view counter */
+// Live visitor counter. Change BASE to change the starting number.
+(function(){
+  var BASE = 30, box = document.getElementById("views"), el = document.getElementById("vNum");
+  var shown = 0, target = BASE, seen = false, failed = false;
+  var calm = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function paint(n){ el.textContent = root.dataset.lang === "gu" ? gnum(n) : n; }
+  function countTo(to){
+    if(calm || to === shown){ shown = to; paint(shown); return; }
+    var from = shown, t0 = performance.now(), dur = Math.min(1800, 500 + Math.abs(to - from) * 30);
+    (function step(t){
+      var k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      shown = Math.round(from + (to - from) * e); paint(shown);
+      if(k < 1) requestAnimationFrame(step);
+    })(t0);
+  }
+  function load(method){
+    return fetch("/api/views", { method: method }).then(function(r){ return r.json(); }).then(function(d){
+      target = BASE + d.count; if(seen) countTo(target);
+    }).catch(function(){ if(!failed){ failed = true; box.style.display = "none"; } });
+  }
+  var first = true;
+  try { first = !sessionStorage.getItem("counted"); sessionStorage.setItem("counted", "1"); } catch(e){}
+  load(first ? "POST" : "GET");
+  if("IntersectionObserver" in window){
+    new IntersectionObserver(function(es, io){
+      if(es[0].isIntersecting){ seen = true; countTo(target); io.disconnect(); }
+    }, { threshold: .6 }).observe(box);
+  } else { seen = true; countTo(target); }
+  setInterval(function(){ if(!document.hidden && !failed) load("GET"); }, 20000);
+  btns.forEach(function(b){ b.addEventListener("click", function(){ paint(shown); }); });
+})();
 </script>
 </body>
 </html>
